@@ -155,7 +155,7 @@ void SubArray::Initialize(int _numRow, int _numCol, double _unitWireRes){  //ini
 		} else {  //if not relax the cell height
 			lengthCol = (double)numRow * cell.heightInFeatureSize * tech.featureSize;
 		}
-
+		
 		// 230920 update
 		param->arraywidthunit = cell.widthInFeatureSize * tech.featureSize;
 		param->arrayheight = (double)numRow * cell.heightInFeatureSize * cell.featureSize;
@@ -225,7 +225,7 @@ void SubArray::Initialize(int _numRow, int _numCol, double _unitWireRes){  //ini
 		capCellAccess = CalculateDrainCap(cell.widthAccessCMOS * ((tech.featureSize <= 14*1e-9)? 2:1) * tech.featureSize, NMOS, MAX_TRANSISTOR_HEIGHT * tech.featureSize, tech);
 		cell.capSRAMCell = capCellAccess + CalculateDrainCap(cell.widthSRAMCellNMOS * ((tech.featureSize <= 14*1e-9)? 2:1) * tech.featureSize, NMOS, MAX_TRANSISTOR_HEIGHT * tech.featureSize, tech) 
 						+ CalculateDrainCap(cell.widthSRAMCellPMOS * ((tech.featureSize <= 14*1e-9)? 2:1) * tech.featureSize, PMOS, MAX_TRANSISTOR_HEIGHT * tech.featureSize, tech) 
-						+ CalculateGateCap(cell.widthSRAMCellNMOS * ((tech.featureSize <= 14*1e-9)? 2:1) * tech.featureSize, tech) + CalculateGateCap(cell.widthSRAMCellPMOS * ((tech.featureSize <= 14*1e-9)? 2:1) * tech.featureSize, tech);
+						+ CalculateGateCap_1T(cell.widthSRAMCellNMOS * ((tech.featureSize <= 14*1e-9)? 2:1) * tech.featureSize, tech);
 
 		// 1.4 update: for buffer insertion
 		double unitcap= capRow1/param->numColSubArray;
@@ -238,7 +238,7 @@ void SubArray::Initialize(int _numRow, int _numCol, double _unitWireRes){  //ini
 		param->columncap = capCol;
 		if (conventionalSequential) {
 		// 1.4 update: consider SRAM parasitic cap
-		capRow1 += 2*CalculateGateCap(cell.widthAccessCMOS * ((tech.featureSize <= 14*1e-9)? 2:1) * tech.featureSize, tech) * numCol;          //sum up all the gate cap of access CMOS, as the row cap
+		capRow1 += CalculateGateCap_1T(cell.widthAccessCMOS * ((tech.featureSize <= 14*1e-9)? 2:1) * tech.featureSize, tech) * numCol;          //sum up all the gate cap of access CMOS, as the row cap
 
 			wlDecoder.Initialize(REGULAR_ROW, (int)ceil(log2(numRow)), false, false);
 			senseAmp.Initialize(numCol, false, cell.minSenseVoltage, lengthRow/numCol, clkFreq, numReadCellPerOperationNeuro);
@@ -340,7 +340,7 @@ void SubArray::Initialize(int _numRow, int _numCol, double _unitWireRes){  //ini
 			}
 		}
 		precharger.Initialize(numCol, resCol, activityColWrite, numReadCellPerOperationNeuro, numWriteCellPerOperationNeuro);
-		sramWriteDriver.Initialize(numCol, activityColWrite, numWriteCellPerOperationNeuro);
+		//sramWriteDriver.Initialize(numCol, activityColWrite, numWriteCellPerOperationNeuro);
 		
     } else if (cell.memCellType == Type::FeFET) {
 		cell.resCellAccess = cell.resistanceOn * IR_DROP_TOLERANCE;
@@ -630,7 +630,7 @@ void SubArray::CalculateArea() {  //calculate layout area for total design
 			
 			//precharger and writeDriver are always needed for all different designs
 			precharger.CalculateArea(NULL, widthArray, NONE);
-			sramWriteDriver.CalculateArea(NULL, widthArray, NONE);
+			//sramWriteDriver.CalculateArea(NULL, widthArray, NONE);
 			
 			if (conventionalSequential) {
 				wlDecoder.CalculateArea(heightArray, NULL, NONE);  
@@ -644,15 +644,15 @@ void SubArray::CalculateArea() {  //calculate layout area for total design
 					shiftAddWeight.CalculateArea(NULL, widthArray, NONE);
 				}
 				// Anni update: DFF*2, for adder and shift-add weight pipeline
-				height = precharger.height + sramWriteDriver.height + heightArray + senseAmp.height + adder.height + dff.height*2 + shiftAddInput.height + shiftAddWeight.height;
+				height = precharger.height + heightArray + senseAmp.height + adder.height + dff.height*2 + shiftAddInput.height + shiftAddWeight.height;
 				width = wlDecoder.width + widthArray;
 				area = height * width;
-				usedArea = areaArray + wlDecoder.area + precharger.area + sramWriteDriver.area + senseAmp.area + adder.area + dff.area*2 + shiftAddInput.area + shiftAddWeight.area;
+				usedArea = areaArray + wlDecoder.area + precharger.area + senseAmp.area + adder.area + dff.area*2 + shiftAddInput.area + shiftAddWeight.area;
 				emptyArea = area - usedArea;
 
 				areaADC = senseAmp.area + precharger.area;
 				areaAccum = adder.area + dff.area*2 + shiftAddInput.area + shiftAddWeight.area;
-				areaOther = wlDecoder.area + sramWriteDriver.area;
+				areaOther = wlDecoder.area;
 			} else if (conventionalParallel) { 
 				wlSwitchMatrix.CalculateArea(heightArray, NULL, NONE);
 				if (numColMuxed>1) {
@@ -1654,7 +1654,7 @@ void SubArray::CalculatePower(const vector<double> &columnResistance) {
 			if (conventionalSequential) {
 				wlDecoder.CalculatePower(numRow*activityRowRead, numRow*activityRowWrite);
 				precharger.CalculatePower(numReadOperationPerRow*numRow*activityRowRead, numWriteOperationPerRow*numRow*activityRowWrite);
-				sramWriteDriver.CalculatePower(numWriteOperationPerRow*numRow*activityRowWrite);
+				//sramWriteDriver.CalculatePower(numWriteOperationPerRow*numRow*activityRowWrite);
 				adder.CalculatePower(numReadOperationPerRow*numRow*activityRowRead, numReadCellPerOperationNeuro/numCellPerSynapse);				
 				// Anni update
 				dff.CalculatePower(numReadOperationPerRow*numRow*activityRowRead, numReadCellPerOperationNeuro/numCellPerSynapse*(ceil(log2(numRow))/2+1), param->validated);
@@ -1669,7 +1669,7 @@ void SubArray::CalculatePower(const vector<double> &columnResistance) {
 
 				// Array
 				// 1.4 update: read energy update
-				readDynamicEnergyArray = capRow1 * tech.vdd * tech.vdd * (numRow) * activityRowRead;  // Just BL discharging // -added, wordline charging
+				readDynamicEnergyArray = capRow1 * (tech.vpass * tech.vpass * (numRow-1) + tech.vread * tech.vread) * activityRowRead;  // Just BL discharging // -added, wordline charging
 				
 				// // 1.4 update: WL energy for write + modification (assuming toggling of SRAM bit at every write, each Q/Qbar consumes half CVdd^2)
 				// writeDynamicEnergyArray = cell.capSRAMCell * tech.vdd * tech.vdd * numCol * activityColWrite * numRow * activityRowWrite;    // flip Q and Q_bar
@@ -1697,7 +1697,7 @@ void SubArray::CalculatePower(const vector<double> &columnResistance) {
 				// Leakage
 				leakage += wlDecoder.leakage;
 				leakage += precharger.leakage;
-				leakage += sramWriteDriver.leakage;
+				//leakage += sramWriteDriver.leakage;
 				leakage += senseAmp.leakage;
 				leakage += dff.leakage;
 				leakage += adder.leakage;
@@ -2242,7 +2242,7 @@ void SubArray::PrintProperty() {
 	    cout << "Write Dynamic Energy = " << writeDynamicEnergyArray*1e12 << "pJ" << endl;
 		
 		precharger.PrintProperty("precharger");
-		sramWriteDriver.PrintProperty("sramWriteDriver");
+		//sramWriteDriver.PrintProperty("sramWriteDriver");
 		
 		if (conventionalSequential) {
 			wlDecoder.PrintProperty("wlDecoder");			

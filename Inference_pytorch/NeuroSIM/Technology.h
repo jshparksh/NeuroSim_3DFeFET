@@ -58,6 +58,8 @@ public:
 	DeviceRoadmap deviceRoadmap;	/* HP or LP */
 	TransistorType transistorType;
 	double vdd;			/* Supply voltage, Unit: V */
+	double vpass;
+	double vread;
 	double vth;				/* Threshold voltage, Unit: V */
 	double heightFin;	/* Fin height, Unit: m */
 	double widthFin;	/* Fin width, Unit: m */

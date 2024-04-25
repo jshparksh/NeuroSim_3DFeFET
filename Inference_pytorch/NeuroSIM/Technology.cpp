@@ -642,6 +642,8 @@ void Technology::Initialize(int _featureSizeInNano, DeviceRoadmap _deviceRoadmap
 			if (deviceRoadmap == HP) {
 				/* PTM model: 22nm.pm, from http://ptm.asu.edu/ */
 				vdd = 0.85;
+				vpass = 2;
+				vread = 0.1;
 				vth = 208.9006e-3;
 				phyGateLength = 2.6e-8;
 				capIdealGate = 3.287e-10;
@@ -700,6 +702,8 @@ void Technology::Initialize(int _featureSizeInNano, DeviceRoadmap _deviceRoadmap
 			} else {
 				/* PTM model: 22nm_LP.pm, from http://ptm.asu.edu/ */
 				vdd = 0.85;
+				vpass = 2;
+				vread = 0.1;
 				vth = 419.915e-3;
 				phyGateLength = 2.6e-8; 	
 				capIdealGate = 5.245e-10;
